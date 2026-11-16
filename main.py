@@ -1,6 +1,7 @@
 # main.py
 # Author: Sebastian Cooper
-
+from fallback_model import FallbackModel
+from keyword_model import KeywordModel
 from chatbot import SupportChatbot
 from change_queue import ChangeQueue
 from ollama_model import OllamaModel
@@ -37,7 +38,10 @@ def main():
     change_queue = ChangeQueue(order_tool)
     tools = Toolbox(order_tool, stock_tool, change_queue)
 
-    model = OllamaModel("granite4.1:3b")
+    model = FallbackModel(
+    OllamaModel("granite4.1:3b"),
+    KeywordModel()
+)
     bot = SupportChatbot("Sunny", INSTRUCTIONS, tools, model)
 
     print("Sunny Support Chatbot")

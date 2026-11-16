@@ -5,6 +5,7 @@ from keyword_model import KeywordModel
 from fake_model import FakeModel
 from change_queue import ChangeQueue
 from toolbox import Toolbox
+from fallback_model import FallbackModel
 
 class SilentModel:
     """A model that never has an answer."""
@@ -171,3 +172,7 @@ def test_model_can_ask_about_a_return():
     bot.respond("Can I return order A100?")
 
     assert "cannot be returned yet" in bot.history[1]["content"]
+
+def test_lookups_keep_working_when_the_model_is_down():
+    bot = make_bot(FallbackModel(SilentModel(), KeywordModel()))
+    assert bot.respond("Where is order A100?") == "Order A100 is shipped."
