@@ -21,7 +21,7 @@ class StockLookup:
         if product in self.stock:
             return self.stock[product]
         return None
-    
+
     def check_stock(self, item):
         """Check how many of one product are in stock.
 

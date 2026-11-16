@@ -19,6 +19,7 @@ def customer(text):
     """Build a history that holds one customer message."""
     return [{"role": "user", "content": text}]
 
+
 def test_look_up_known_order():
     tools = make_tools()
     assert tools.order_tool.look_up_order("A100") == "Order A100 is shipped."

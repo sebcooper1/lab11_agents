@@ -4,42 +4,75 @@
 from my_assistant import TournamentAssistant
 from my_tool import TournamentLookup
 from ollama_model import OllamaModel
+from registration_queue import RegistrationQueue
+from tournament_toolbox import TournamentToolbox
 
-MODEL_NAME = "granite4.1:3b"
+INSTRUCTIONS = """
+You are a friendly assistant for a pickleball tournament.
 
-INSTRUCTIONS = """You are PickleBot, a helpful assistant for a pickleball tournament.
-Answer questions in one short sentence.
-The tournament starts at 9:00 AM.
-The tournament takes place in Tampa, Florida.
-There are 80 available player spots and 8 pickleball courts.
-Only state facts that appear in these instructions.
-If you do not know the answer, say you do not know and suggest contacting a tournament organizer."""
+You can answer questions about tournament times,
+location, players, and courts.
 
-TOURNAMENT_INFO = {
-    "time": "The tournament starts at 9:00 AM.",
-    "location": "The tournament takes place in Tampa, Florida.",
-    "players": "The tournament allows up to 80 players.",
-    "courts": "There will be 8 pickleball courts available.",
-}
+Use get_tournament_info when the user asks about
+tournament information.
 
-tournament_tool = TournamentLookup(TOURNAMENT_INFO)
-model = OllamaModel(MODEL_NAME)
+Use request_registration when someone wants to register.
+Ask for the player's full name before requesting registration.
+
+Registration requests must be approved by an organizer
+before the player is officially registered.
+
+If the user only says hello, greet them and ask how you can help.
+
+Do not invent tournament details or player names.
+"""
 
 
-bot = TournamentAssistant(
-    "PickleBot",
-    "You help customers find information about a pickleball tournament.",
-    tournament_tool,
-    model,
-)
+def main():
+    tournament_info = {
+        "time": "Friday at 9 AM",
+        "location": "Tampa Pickleball Crew",
+        "players": "80 players",
+        "courts": "8 courts",
+    }
 
-print("Welcome to PickleBot!")
-print("Type quit to stop.")
+    tournament_tool = TournamentLookup(tournament_info)
+    registration_queue = RegistrationQueue()
 
-user_message = input("You: ")
+    tools = TournamentToolbox(tournament_tool, registration_queue)
+    model = OllamaModel("granite4.1:3b")
 
-while user_message.lower() != "quit":
-    print(f"{bot.name}: {bot.respond(user_message)}")
-    user_message = input("You: ")
+    bot = TournamentAssistant("Robin", INSTRUCTIONS, tools, model)
 
-print(f"Messages in this conversation: {len(bot.history)}")
+    print("Robin Tournament Assistant")
+    print("Type 'quit' to stop.")
+
+    while True:
+        user_message = input("You: ").strip()
+
+        if user_message.lower() == "quit":
+            break
+
+        reply = bot.respond(user_message)
+        print(f"Robin: {reply}")
+
+    print("\nOrganizer review:")
+
+    for request in registration_queue.waiting():
+        print(request)
+
+        answer = (
+            input(f"Approve request {request['number']}? (yes/no): ").strip().lower()
+        )
+
+        if answer == "yes":
+            print(registration_queue.approve(request["number"]))
+        else:
+            print(registration_queue.reject(request["number"]))
+
+    print("\nApproved registrations:")
+    print(registration_queue.registrations)
+
+
+if __name__ == "__main__":
+    main()

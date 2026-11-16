@@ -3,6 +3,7 @@
 
 from ollama import ResponseError, chat
 
+
 class OllamaModel:
     """A real AI model that runs on this computer through Ollama."""
 
@@ -57,14 +58,18 @@ class OllamaModel:
 
         for message in history:
             if message["role"] == "tool":
-                messages.append({
-                    "role": "tool",
-                    "content": message["content"],
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "content": message["content"],
+                    }
+                )
             else:
-                messages.append({
-                    "role": message["role"],
-                    "content": message["content"],
-                })
+                messages.append(
+                    {
+                        "role": message["role"],
+                        "content": message["content"],
+                    }
+                )
 
         return messages

@@ -17,7 +17,7 @@ class OrderLookup:
         if order_id in self.orders:
             return self.orders[order_id]["status"]
         return None
-   
+
     def look_up_order(self, order_id):
         """Look up the status of one order.
 

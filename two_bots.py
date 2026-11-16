@@ -1,5 +1,5 @@
-from chatbot import SupportChatbot
 from change_queue import ChangeQueue
+from chatbot import SupportChatbot
 from keyword_model import KeywordModel
 from order_tool import OrderLookup
 from stock_tool import StockLookup

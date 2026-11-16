@@ -1,9 +1,9 @@
 # main.py
 # Author: Sebastian Cooper
+from change_queue import ChangeQueue
+from chatbot import SupportChatbot
 from fallback_model import FallbackModel
 from keyword_model import KeywordModel
-from chatbot import SupportChatbot
-from change_queue import ChangeQueue
 from ollama_model import OllamaModel
 from order_tool import OrderLookup
 from stock_tool import StockLookup
@@ -38,10 +38,7 @@ def main():
     change_queue = ChangeQueue(order_tool)
     tools = Toolbox(order_tool, stock_tool, change_queue)
 
-    model = FallbackModel(
-    OllamaModel("granite4.1:3b"),
-    KeywordModel()
-)
+    model = FallbackModel(OllamaModel("granite4.1:3b"), KeywordModel())
     bot = SupportChatbot("Sunny", INSTRUCTIONS, tools, model)
 
     print("Sunny Support Chatbot")
@@ -61,9 +58,9 @@ def main():
         print(request)
 
     for request in change_queue.waiting():
-        answer = input(
-            f"Approve request {request['number']}? (yes/no): "
-        ).strip().lower()
+        answer = (
+            input(f"Approve request {request['number']}? (yes/no): ").strip().lower()
+        )
 
         if answer == "yes":
             print(change_queue.approve(request["number"]))

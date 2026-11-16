@@ -1,6 +1,7 @@
 # fallback_model.py
 # Author: Sebastian Cooper
 
+
 class FallbackModel:
     """Ask the first model. If it has no answer, ask the second."""
 

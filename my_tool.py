@@ -2,8 +2,6 @@
 # Author: Sebastian Cooper
 
 
-
-
 class TournamentLookup:
     """A tool that stores information about a pickleball tournament."""
 
@@ -29,3 +27,18 @@ class TournamentLookup:
         if topic in self.tournament_info:
             return self.tournament_info[topic]
         return None
+
+    def get_tournament_info(self, topic):
+        """Look up information about a pickleball tournament.
+
+        Args:
+            topic: The tournament topic, such as time, location, players, or courts.
+        """
+        topic = topic.lower().strip()
+
+        answer = self.info_for(topic)
+
+        if answer is None:
+            return "I couldn't find that tournament information."
+
+        return answer
