@@ -15,7 +15,7 @@ class OrderLookup:
     def find_status(self, order_id):
         """Return the status of one order, or None if there is no such order."""
         if order_id in self.orders:
-            return self.orders[order_id]
+            return self.orders[order_id]["status"]
         return None
    
     def look_up_order(self, order_id):

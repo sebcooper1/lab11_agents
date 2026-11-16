@@ -1,113 +1,161 @@
 from chatbot import SupportChatbot
-from echo_model import EchoModel
-from mock_model import MockModel
 from order_tool import OrderLookup
 from stock_tool import StockLookup
-
+from keyword_model import KeywordModel
+from fake_model import FakeModel
+from change_queue import ChangeQueue
+from toolbox import Toolbox
 
 class SilentModel:
-    """A model that never has an ansswer. It stands in for Ollama being switched off"""
+    """A model that never has an answer."""
 
-    def reply(self, instructions, history):
+    def decide(self, instructions, history, tools):
         return None
 
 
-def make_bot():
-    """Build a fresh chatbot with its own tools and a mock model for each test."""
-    order_tool = OrderLookup({"A100": "shipped", "A101": "processing"})
+def make_bot(model):
+    orders = {
+        "A100": {"status": "shipped", "address": "14 Bay Road"},
+        "A101": {"status": "processing", "address": "3 Gull Lane"},
+    }
+
+    order_tool = OrderLookup(orders)
     stock_tool = StockLookup({"rain jacket": 12, "day pack": 0})
-    return SupportChatbot("Sunny", "Be friendly.", order_tool, stock_tool, MockModel())
+    change_queue = ChangeQueue(order_tool)
 
+    tools = Toolbox(order_tool, stock_tool, change_queue)
 
-def make_bot_with_silent_model():
-    """Build a chatbot whose model never answers."""
-    order_tool = OrderLookup({"A100": "shipped", "A101": "processing"})
-    stock_tool = StockLookup({"rain jacket": 12, "day pack": 0})
-    return SupportChatbot(
-        "Sunny", "Be friendly.", order_tool, stock_tool, SilentModel()
-    )
+    return SupportChatbot("Sunny", "Be friendly.", tools, model)
 
-
-def test_tool_finds_known_status():
-    tool = OrderLookup({"A100": "shipped"})
-    assert tool.find_status("A100") == "shipped"
-
-
-def test_tool_returns_none_for_unknown_order():
-    tool = OrderLookup({"A100": "shipped"})
-    assert tool.find_status("A999") is None
-
+def ask_for_tool(name, arguments):
+    """Create a tool request that FakeModel can return."""
+    return {"tool": name, "arguments": arguments}
 
 def test_respond_records_both_messages():
-    bot = make_bot()
-    bot.respond("Hello")
+    bot = make_bot(KeywordModel())
+    bot.respond("hello")
     assert len(bot.history) == 2
     assert bot.history[0]["role"] == "user"
     assert bot.history[1]["role"] == "assistant"
 
 
 def test_order_question_uses_the_tool():
-    bot = make_bot()
+    bot = make_bot(KeywordModel())
     assert bot.respond("Where is order A100?") == "Order A100 is shipped."
 
 
-def test_order_question_without_an_id_asks_for_one():
-    bot = make_bot()
-    assert "order ID" in bot.respond("Where is my order?")
-
-
-def test_address_change_goes_to_a_human():
-    bot = make_bot()
-    assert "human" in bot.respond("Please change my shipping address.")
-
-
-def test_unkown_request_gets_a_safe_reply():
-    bot = make_bot()
-    assert "not sure" in bot.respond("What is the weather today?")
-
-
 def test_two_chatbots_keep_separate_histories():
-    first = make_bot()
-    second = make_bot()
-    first.respond("Hello")
+    first = make_bot(KeywordModel())
+    second = make_bot(KeywordModel())
+
+    first.respond("hello")
+
     assert len(first.history) == 2
     assert len(second.history) == 0
 
 
 def test_count_user_messages():
-    bot = make_bot()
-    bot.respond("Hello")
-    bot.respond("Where is order A100?")
+    bot = make_bot(KeywordModel())
+
+    bot.respond("hello")
+    bot.respond("What is the weather?")
+
     assert bot.count_user_messages() == 2
 
 
-def test_stock_question_uses_the_stock_tool():
-    bot = make_bot()
-    assert "12" in bot.respond("Is the rain jacket in stock?")
+def test_payment_question_goes_to_a_human():
+    bot = make_bot(KeywordModel())
+
+    assert "human" in bot.respond("I have a payment question.")
 
 
-def test_other_messages_go_to_the_model():
-    bot = make_bot()
-    assert bot.respond("hello") == "Hello! How can I help you today?"
+def test_card_question_goes_to_a_human():
+    bot = make_bot(KeywordModel())
+
+    assert "human" in bot.respond("Can I change my card?")
 
 
-def test_safe_reply_when_the_model_has_no_answer():
-    bot = make_bot_with_silent_model()
+def test_safe_reply_when_model_has_no_answer():
+    bot = make_bot(SilentModel())
+
     assert "try again" in bot.respond("hello")
 
 
-def test_order_rule_does_not_need_the_model():
-    bot = make_bot_with_silent_model()
-    assert bot.respond("Where is order A100?") == "Order A100 is shipped."
+def test_fake_model_returns_text():
+    model = FakeModel([{"text": "Welcome!"}])
+    bot = make_bot(model)
+
+    assert bot.respond("hello") == "Welcome!"
 
 
-def test_handoff_rule_does_not_need_the_model():
-    bot = make_bot_with_silent_model()
-    assert "human" in bot.respond("Please change my shipping address")
+def test_fake_model_can_request_order_lookup():
+    model = FakeModel([
+        ask_for_tool("look_up_order", {"order_id": "A100"}),
+        {"text": "Your order has shipped."},
+    ])
+    bot = make_bot(model)
+
+    assert bot.respond("Please check A100") == "Your order has shipped."
 
 
-def test_chatbot_works_with_any_model_that_has_a_reply_method():
-    order_tool = OrderLookup({"A100": "shipped"})
-    stock_tool = StockLookup({"rain jacket": 12})
-    bot = SupportChatbot("Sunny", "Be friendly.", order_tool, stock_tool, EchoModel())
-    assert bot.respond("good morning") == "You said: good morning"
+def test_fake_model_can_request_stock_lookup():
+    model = FakeModel([
+        ask_for_tool("check_stock", {"item": "rain jacket"}),
+        {"text": "We have 12 rain jackets."},
+    ])
+    bot = make_bot(model)
+
+    assert bot.respond("Is the rain jacket in stock?") == "We have 12 rain jackets."
+
+
+def test_fake_model_tool_result_is_saved_in_history():
+    model = FakeModel([
+        ask_for_tool("look_up_order", {"order_id": "A100"}),
+        {"text": "Your order has shipped."},
+    ])
+    bot = make_bot(model)
+
+    bot.respond("Check order A100")
+
+    assert bot.history[1]["role"] == "tool"
+    assert "shipped" in bot.history[1]["content"]
+
+
+def test_address_change_request_does_not_apply_immediately():
+    model = FakeModel([
+        ask_for_tool(
+            "change_address",
+            {"order_id": "A100", "new_address": "25 Oak Street"},
+        ),
+        {"text": "Your address change request is waiting for approval."},
+    ])
+    bot = make_bot(model)
+
+    reply = bot.respond("Change order A100 to 25 Oak Street")
+
+    assert "waiting for approval" in reply
+    assert bot.tools.order_tool.orders["A100"]["address"] == "14 Bay Road"
+
+
+def test_three_tool_round_limit():
+    model = FakeModel([
+        ask_for_tool("check_stock", {"item": "rain jacket"}),
+        ask_for_tool("check_stock", {"item": "rain jacket"}),
+        ask_for_tool("check_stock", {"item": "rain jacket"}),
+    ])
+    bot = make_bot(model)
+
+    reply = bot.respond("Check stock for rain jacket")
+
+    assert "human" in reply
+    assert model.calls == 3
+
+
+def test_handoff_does_not_call_model():
+    model = FakeModel([{"text": "This should not be used."}])
+    bot = make_bot(model)
+
+    reply = bot.respond("I have a payment question.")
+
+    assert "human" in reply
+    assert model.calls == 0

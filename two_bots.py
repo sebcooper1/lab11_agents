@@ -1,31 +1,37 @@
-# two_bots.py
-# Author: Sebastian Cooper
-
 from chatbot import SupportChatbot
-from mock_model import MockModel
+from change_queue import ChangeQueue
+from keyword_model import KeywordModel
 from order_tool import OrderLookup
 from stock_tool import StockLookup
+from toolbox import Toolbox
 
-order_tool = OrderLookup({"A100": "shipped", "A101": "processing"})
-stock_tool = StockLookup({"rain jacket": 12, "day pack": 0})
 
-model = MockModel()
+def make_bot(name, instructions):
+    orders = {
+        "A100": {"status": "shipped", "address": "14 Bay Road"},
+        "A101": {"status": "processing", "address": "3 Gull Lane"},
+    }
 
-sunny = SupportChatbot(
-    "Sunny", "You are cheerful and brief.", order_tool, stock_tool, model
-)
+    order_tool = OrderLookup(orders)
+    stock_tool = StockLookup({"rain jacket": 12, "day pack": 0})
+    change_queue = ChangeQueue(order_tool)
+    tools = Toolbox(order_tool, stock_tool, change_queue)
 
-river = SupportChatbot(
-    "River", "You are formal and detailed.", order_tool, stock_tool, model
-)
+    model = KeywordModel()
 
-sunny.respond("hello")
-sunny.respond("Where is order A100?")
-river.respond("hello")
+    return SupportChatbot(name, instructions, tools, model)
 
-print(sunny.name, len(sunny.history))
-print(river.name, len(river.history))
-print(sunny.history[1]["content"])
-print(river.history[1]["content"])
-print(sunny.instructions)
-print(river.instructions)
+
+def main():
+    sunny = make_bot("Sunny", "Be friendly and helpful.")
+    river = make_bot("River", "Be brief and professional.")
+
+    print(sunny.respond("hello"))
+    print(river.respond("hello"))
+
+    print("Sunny's messages:", sunny.count_user_messages())
+    print("River's messages:", river.count_user_messages())
+
+
+if __name__ == "__main__":
+    main()
